@@ -474,3 +474,111 @@ Section formula_ind'.
   .
 End formula_ind'.
 
+(* 3.8 Nested Inductive Types *)
+
+Inductive nat_tree : Set :=
+| NNode' : nat -> list nat_tree -> nat_tree
+.
+
+Check nat_tree_ind.
+
+Section All.
+  Variable T : Set.
+  Variable P : T -> Prop.
+  Fixpoint All (ls : list T) : Prop :=
+    match ls with
+    | Nil => True
+    | Cons h t => P h /\ All t
+    end
+  .
+End All.
+
+Print True.
+
+Locate "/\".
+
+Print and.
+
+Section nat_tree_ind'.
+  Variable P : nat_tree -> Prop.
+  Hypothesis NNode'_case : forall (n : nat) (ls : list nat_tree) ,
+      All P ls -> P (NNode' n ls).
+
+  Fixpoint nat_tree_ind' (tr : nat_tree) : P tr :=
+    match tr with
+    | NNode' n ls =>
+        NNode'_case n ls
+          ((fix list_nat_tree_ind (ls : list nat_tree) : All P ls :=
+             match ls with
+             | Nil => I
+             | Cons tr' rest => conj (nat_tree_ind' tr') (list_nat_tree_ind rest)
+             end)
+             ls)
+    end.
+
+End nat_tree_ind'.
+
+Section map.
+  Variables T T' : Set.
+  Variable F : T -> T'.
+  Fixpoint map(ls : list T) : list T' :=
+    match ls with
+    | Nil => Nil
+    | Cons h t => Cons (F h) (map t)
+    end.
+End map.
+
+Fixpoint sum (ls : list nat) : nat :=
+  match ls with
+  | Nil => O
+  | Cons h t => plus h (sum t)
+  end.
+
+Fixpoint ntsize (tr : nat_tree) : nat :=
+  match tr with
+  | NNode' _ trs => S (sum (map ntsize trs))
+  end.
+
+Fixpoint ntsplice (tr1 tr2 : nat_tree) : nat_tree :=
+  match tr1 with
+  | NNode' n Nil => NNode' n (Cons tr2 Nil)
+  | NNode' n (Cons tr trs) => NNode' n (Cons (ntsplice tr tr2) trs)
+  end.
+
+Lemma plus_S : forall n1 n2 : nat,
+    plus n1 (S n2) = S (plus n1 n2).
+      induction n1; crush.
+Qed.
+
+Hint Rewrite plus_S.
+
+Theorem ntsize_ntsplice : forall tr1 tr2 : nat_tree ,
+    ntsize (ntsplice tr1 tr2) = plus (ntsize tr2) (ntsize tr1).
+      induction tr1 using nat_tree_ind'; crush.
+      destruct ls; crush.
+    Restart.
+    Hint Extern 1 (ntsize (match ?LS with Nil => _ | Cons _ _ => _ end) = _) =>
+    destruct LS; crush.
+    induction tr1 using nat_tree_ind'; crush.
+Qed.
+
+(* 3.9 Manual Proofs About Constructors *)
+
+Theorem true_neq_false :
+  true <> false.
+    red.
+    intro H.
+    Definition toProp (b : bool) := if b then True else False.
+    change (toProp false).
+    rewrite <- H.
+    simpl.
+    trivial.
+Qed.
+
+Theorem S_inj' : forall n m : nat ,
+    S n = S m -> n = m.
+                   intros n m H.
+                   change (pred (S n) = pred (S m)).
+                   rewrite H.
+                   reflexivity.
+Qed.
