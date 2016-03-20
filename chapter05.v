@@ -4,7 +4,7 @@
 Require Import List Cpdt.CpdtTactics.
 Require Import Arith.
 Set Implicit Arguments.
-
+Set Asymmetric Patterns.
 
 (* 5.1 Computing with Infinite Data *)
 
@@ -186,3 +186,68 @@ End stream_eq_onequant.
 Lemma fact_eq'' : forall n, stream_eq (fact_iter' (S n) (fact n)) (fact_slow' n).
       apply stream_eq_onequant; crush; eauto.
 Qed.
+
+(* 5.3 Simple Modeling of Non-Terminating Programs *)
+
+Definition var := nat.
+
+Definition vars := var -> nat.
+Definition set (vs : vars) (v : var) (n : nat) : vars :=
+  fun v' => if beq_nat v v' then n else vs v'.
+
+Inductive exp : Set :=
+| Const : nat -> exp
+| Var : var -> exp
+| Plus : exp -> exp -> exp
+.
+
+Fixpoint evalExp (vs : vars) (e : exp) : nat :=
+  match e with
+  | Const n => n
+  | Var v => vs v
+  | Plus e1 e2 => evalExp vs e1 + evalExp vs e2
+  end
+.
+
+Inductive cmd : Set :=
+| Assign : var -> exp -> cmd
+| Seq : cmd -> cmd -> cmd
+| While : exp -> cmd -> cmd
+.
+
+CoInductive evalCmd : vars -> cmd -> vars -> Prop :=
+| EvalAssign : forall vs v e , evalCmd vs (Assign v e) (set vs v (evalExp vs e))
+| EvalSeq : forall vs1 vs2 vs3 c1 c2 ,
+    evalCmd vs1 c1 vs2
+    -> evalCmd vs2 c2 vs3
+    -> evalCmd vs1 (Seq c1 c2) vs3
+| EvalWhileFalse : forall vs e c ,
+    evalExp vs e = 0
+    -> evalCmd vs (While e c) vs
+| EvalWhileTrue : forall vs1 vs2 vs3 e c ,
+    evalExp vs1 e <> 0
+    -> evalCmd vs1 c vs2
+    -> evalCmd vs2 (While e c) vs3
+    -> evalCmd vs1 (While e c) vs3
+.
+
+Section evalCmd_coind.
+  Variable R : vars -> cmd -> vars -> Prop.
+
+  Hypothesis AssignCase : forall vs1 vs2 v e, R vs1 (Assign v e) vs2
+    -> vs2 = set vs1 v (evalExp vs1 e).
+
+  Hypothesis SeqCase : forall vs1 vs3 c1 c2, R vs1 (Seq c1 c2) vs3
+    -> exists vs2, R vs1 c1 vs2 /\ R vs2 c2 vs3.
+
+  Hypothesis WhileCase : forall vs1 vs3 e c, R vs1 (While e c) vs3
+    -> (evalExp vs1 e = 0 /\ vs3 = vs1)
+    \/ exists vs2, evalExp vs1 e <> 0 /\ R vs1 c vs2 /\ R vs2 (While e c) vs3.
+
+  Theorem evalCmd_coind : forall vs1 c vs2, R vs1 c vs2 -> evalCmd vs1 c vs2.
+    cofix; intros; destruct c.
+    rewrite (AssignCase H); constructor.
+    destruct (SeqCase H) as [? [? ?]]; econstructor; eauto.
+    destruct (WhileCase H) as [[? ?] | [? [? [? ?]]]]; subst; econstructor; eauto.
+  Qed.
+End evalCmd_coind.
