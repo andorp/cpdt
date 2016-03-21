@@ -231,6 +231,25 @@ CoInductive evalCmd : vars -> cmd -> vars -> Prop :=
     -> evalCmd vs1 (While e c) vs3
 .
 
+(*
+
+----------------------------------------- (EvalAssign)
+{vs} Assign v e {set vs v (evalExp vs e)}
+
+{vs1} c1 {vs2}           {vs2} c2 {vs3}
+--------------------------------------- (EvalSeq)
+         {vs1} Seq c1 c2 {vs3}
+
+ evalExp vs e = 0
+------------------- (EvalWhileFalse)
+{vs} While e c {vs}
+
+evalExp vs1 e <> 0     {vs1} c {vs2}      {vs2} While e c {vs3}
+--------------------------------------------------------------- (EvalWhileTrue)
+                   {vs1} While e c {vs3}
+
+*)
+
 Section evalCmd_coind.
   Variable R : vars -> cmd -> vars -> Prop.
 
