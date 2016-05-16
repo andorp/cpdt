@@ -210,3 +210,32 @@ Defined.
 
 Eval compute in pred_strong8 2.
 Eval compute in pred_strong8 0.
+
+(* 6.4 Monadic Notations *)
+
+Notation "x <- e1 ; e2" := (match e1 with
+                            | Unknown => ??
+                            | Found x _ => e2
+                            end)
+                             (right associativity, at level 60).
+
+Definition doublePred : forall n1 n2 : nat , {{p | n1 = S (fst p) /\ n2 = S (snd p)}}.
+                                               refine (fun n1 n2 =>
+                                                         m1 <- pred_strong7 n1;
+                                                         m2 <- pred_strong7 n2;
+                                                         [| (m1, m2) |]); tauto.
+Defined.
+
+Notation "x <-- e1 ; e2" := (match e1 with
+                             | inright _ => !!
+                             | inleft (exist x _) => e2
+                             end)
+                              (right associativity, at level 60).
+
+Definition doublePred' : forall n1 n2 : nat,
+    {p : nat * nat | n1 = S (fst p) /\ n2 = S (snd p)} + {n1 = 0 \/ n2 = 0}.
+                                                           refine (fun n1 n2 =>
+                                                                     m1 <-- pred_strong8 n1;
+                                                                     m2 <-- pred_strong8 n2;
+                                                                     [|| (m1, m2) ||]); tauto.
+Defined.
