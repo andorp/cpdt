@@ -239,3 +239,88 @@ Definition doublePred' : forall n1 n2 : nat,
                                                                      m2 <-- pred_strong8 n2;
                                                                      [|| (m1, m2) ||]); tauto.
 Defined.
+
+(* 6.5 A Type-Checking Example *)
+
+Inductive exp : Set :=
+| Nat : nat -> exp
+| Plus : exp -> exp -> exp
+| Bool : bool -> exp
+| And : exp -> exp -> exp
+.
+
+Inductive type : Set := TNat | TBool.
+
+Inductive hasType : exp -> type -> Prop :=
+| HtNat : forall n , hasType (Nat n) TNat
+| HtPlus : forall e1 e2 , hasType e1 TNat -> hasType e2 TNat -> hasType (Plus e1 e2) TNat
+| HtBool : forall b , hasType (Bool b) TBool
+| HtAnd : forall e1 e2 , hasType e1 TBool -> hasType e2 TBool -> hasType (And e1 e2) TBool
+.
+
+Definition eq_type_dec : forall t1 t2 : type, {t1 = t2} + {t1 <> t2}.
+                                                            decide equality.
+Defined.
+
+Notation "e1 ;; e2" := (if e1 then e2 else ??)
+                         (right associativity, at level 60).
+
+Definition typeCheck : forall e : exp , {{t | hasType e t}}.
+                                          Hint Constructors hasType.
+                                          refine (fix F (e : exp) : {{ t | hasType e t}} :=
+                                                    match e return {{t | hasType e t}} with
+                                                    | Nat _ => [| TNat |]
+                                                    | Plus e1 e2 =>
+                                                      t1 <- F e1;
+                                                      t2 <- F e2;
+                                                      eq_type_dec t1 TNat;;
+                                                      eq_type_dec t2 TNat;;
+                                                      [| TNat |]
+                                                    | Bool _ => [| TBool |]
+                                                    | And e1 e2 =>
+                                                      t1 <- F e1;
+                                                      t2 <- F e2;
+                                                      eq_type_dec t1 TBool;;
+                                                      eq_type_dec t2 TBool;;
+                                                      [| TBool |]
+                                                    end); crush.
+Defined.
+
+Eval simpl in typeCheck (Nat 0).
+Eval simpl in typeCheck (Plus (Nat 1) (Nat 2)).
+Eval simpl in typeCheck (Plus (Nat 1) (Bool false)).
+
+Notation "e1 ;;; e2" := (if e1 then e2 else !!) (right associativity, at level 60).
+
+Lemma hasType_det : forall e t1 ,
+    hasType e t1 -> forall t2 , hasType e t2 -> t1 = t2.
+                                                  induction 1; inversion 1; crush.
+Qed.
+
+Definition typeCheck' : forall e : exp , {t : type | hasType e t} + {forall t , ~ hasType e t}.
+  Hint Constructors hasType.
+  Hint Resolve hasType_det.
+  refine (fix F (e : exp) : {t : type | hasType e t} + {forall t , ~ hasType e t} :=
+            match e return {t : type | hasType e t} + {forall t , ~ hasType e t} with
+            | Nat _ => [|| TNat ||]
+            | Plus e1 e2 =>
+              t1 <-- F e1;
+              t2 <-- F e2;
+              eq_type_dec t1 TNat;;;
+              eq_type_dec t2 TNat;;;
+              [|| TNat ||]
+            | Bool _ => [|| TBool ||]
+            | And e1 e2 =>
+              t1 <-- F e1;
+              t2 <-- F e2;
+              eq_type_dec t1 TBool;;;
+              eq_type_dec t2 TBool;;;
+              [|| TBool ||]
+            end); clear F; crush' tt hasType; eauto.
+Defined.
+
+Eval simpl in typeCheck' (Nat 0).
+Eval simpl in typeCheck' (Plus (Nat 1) (Nat 2)).
+Eval simpl in typeCheck' (Plus (Nat 1) (Bool false)).
+
+Extraction "type_check.hs" typeCheck typeCheck'.
