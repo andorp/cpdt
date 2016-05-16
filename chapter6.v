@@ -173,3 +173,40 @@ Extraction "in_dec.hs" In_dec.
 
 (* TODO: Extract list to haskell list... *)
 
+(* 6.3 Partial Subset Types *)
+
+Inductive maybe (A : Set) (P : A -> Prop) : Set :=
+| Unknown : maybe P
+| Found : forall x : A , P x -> maybe P
+.
+
+Notation "{{ x | P }}" := (maybe (fun x => P)).
+Notation "??" := (Unknown _).
+Notation "[| x |]" := (Found _ x _).
+
+Definition pred_strong7 : forall n : nat , {{m | n = S m}}.
+                                             refine (fun n =>
+                                                       match n return {{m | n = S m}} with
+                                                       | O => ??
+                                                       | S n' => [| n' |]
+                                                       end); trivial.
+Defined.
+
+Eval compute in pred_strong7 2.
+Eval compute in pred_strong7 0.
+
+Print sumor.
+
+Notation "!!" := (inright _ _).
+Notation "[|| x ||]" := (inleft _ [x]).
+
+Definition pred_strong8 : forall n : nat , { m : nat | n = S m } + { n = 0 }.
+                                                                     refine (fun n =>
+                                                                               match n with
+                                                                               | O => !!
+                                                                               | S n' => [|| n' ||]
+                                                                               end); trivial.
+Defined.
+
+Eval compute in pred_strong8 2.
+Eval compute in pred_strong8 0.
