@@ -1,7 +1,7 @@
 
 (* 6 Subset Types and Variations *)
 
-Require Import Arith Cpdt.CpdtTactics.
+Require Import List Arith Cpdt.CpdtTactics.
 
 Set Implicit Arguments.
 Set Asymmetric Patters.
@@ -123,3 +123,53 @@ Program Definition pred_strong6 (n : nat) (_ : n > 0) : {m : nat | n = S m} :=
 Print pred_strong6.
 
 Eval compute in pred_strong6 two_gt0.
+
+(* 6.2 Decidable Proposition Types *)
+
+Print sumbool.
+
+Notation "'Yes'" := (left _ _).
+Notation "'No'"  := (right _ _).
+Notation "'Reduce' x" := (if x then Yes else No) (at level 50).
+
+Definition eq_nat_dec : forall n m : nat , {n = m} + {n <> m}.
+                                                       refine (fix f (n m : nat) : {n = m} + {n <> m} :=
+                                                                 match n, m with
+                                                                 | O, O => Yes
+                                                                 | S n', S m' => Reduce (f n' m')
+                                                                 | _, _ => No
+                                                                 end); congruence.
+Defined.
+
+Eval compute in eq_nat_dec 2 2.
+Eval compute in eq_nat_dec 2 3.
+
+Definition eq_nat_dec' (n m : nat) : {n = m} + {n <> m}.
+                                                 decide equality.
+Defined.
+
+Extract Inductive sumbool => "Bool" ["True" "False"].
+
+Extraction "eq_nat_dec.hs" eq_nat_dec eq_nat_dec' .
+
+Notation "x || y" := (if x then Yes else Reduce y).
+
+Section In_dec.
+  Variable A : Set.
+  Variable A_eq_dec : forall x y : A , {x = y} + {x <> y}.
+  Definition In_dec : forall (x : A) (ls : list A) , {In x ls} + {~ In x ls}.
+                                                                   refine (fix f (x : A) (ls : list A) : {In x ls} + {~ In x ls} :=
+                                                                             match ls with
+                                                                             | nil => No
+                                                                             | x' :: ls' => A_eq_dec x x' || f x ls'
+                                                                             end); crush.
+  Defined.
+End In_dec.
+
+Eval compute in In_dec eq_nat_dec 2 (1 :: 2 :: nil).
+Eval compute in In_dec eq_nat_dec 3 (1 :: 2 :: nil).
+
+Extraction "in_dec.hs" In_dec.
+
+(* TODO: Extract list to haskell list... *)
+
