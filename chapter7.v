@@ -323,4 +323,41 @@ Section Fix.
                                                                    | [ H : _ >= _ |- _ ] => inversion H; crush; eauto
                                                                    end.
   Qed.
-  
+
+  Hint Resolve Fix'_ok.
+
+  Hint Extern 1 (proj1_sig _ _ = _) => simpl;
+    match goal with
+    | [ |- proj1_sig ?E _ = _ ] => eapply (proj2_sig E)
+    end.
+
+  Definition Fix : A -> computation B.
+                     intro x; exists (fun n => proj1_sig (Fix' n x) n); abstract run.
+  Defined.
+
+  Theorem run_Fix : forall x v ,
+      run (f Fix x) v -> run (Fix x) v.
+        run; match goal with
+             | [ n : nat |- _ ] => exists (S n); eauto
+             end.
+  Qed.
+End Fix.
+
+(*
+Definition mergeSort' : forall A , (A -> A -> bool) -> list A -> computation (list A).
+                                     refine (fun A le => Fix
+                                                           (fun mergeSort : list A -> computation (list A))
+                                                           (ls : list A) =>
+                                             if le_lt_dec 2 (length ls)
+                                             then let lss := split ls in
+                                                  ls1 <- mergeSort (fst lss);
+                                                    ls2 <- mergeSort (snd lss);
+                                                    Return (merge le ls1 ls2)
+                                             else Return ls) _); abstract mergeSort'.
+Defined.
+
+Lemma test_mergeSort' : run (mergeSort' leb (1 :: 2 :: 36 :: 8 :: 19 :: nil))
+                            (1 :: 2 :: 8 :: 19 :: 36 :: nil).
+                          exists 4; reflexivity.
+Qed.
+ *)
